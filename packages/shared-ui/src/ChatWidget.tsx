@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 
 // Embeds the legacy chatbot iframe. The chatbot URL is sport-aware via the
