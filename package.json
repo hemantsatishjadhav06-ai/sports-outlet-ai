@@ -1,0 +1,21 @@
+{
+  "name": "sports-outlet-ai",
+  "version": "0.1.0",
+  "private": true,
+  "description": "One brain, three faces: shared backend + 3 sport-specific Next.js frontends",
+  "workspaces": [
+    "apps/*",
+    "backend",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev:backend": "npm --workspace backend run dev",
+    "dev:tennis": "npm --workspace tennis-frontend run dev",
+    "dev:pickleball": "npm --workspace pickleball-frontend run dev",
+    "dev:padel": "npm --workspace padel-frontend run dev"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

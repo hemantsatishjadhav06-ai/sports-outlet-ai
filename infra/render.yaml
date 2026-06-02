@@ -1,0 +1,159 @@
+# sports-outlet-ai -- Render Blueprint
+#
+# Provisions:
+#   1 Postgres database          (sports-outlet-ai-db)
+#   1 Redis instance             (sports-outlet-ai-redis)
+#   1 backend web service        (backend-api)        -- runs Express + workers via tsx
+#   3 frontend web services      (tennis/pickleball/padel-frontend)
+#
+# Build notes:
+#   This is an npm-workspaces monorepo. Every service installs from the REPO
+#   ROOT (rootDir omitted) so workspace packages (@sports-outlet-ai/*) are
+#   linked. `--include=dev` is required because Render sets NODE_ENV=production,
+#   which would otherwise make npm skip devDependencies (tsx, typescript, types).
+#   The backend runs straight from TypeScript with tsx, so the workspace
+#   packages (which ship .ts via their "main") resolve without a build step.
+#
+# Secrets are `sync: false` so Render prompts on first apply.
+
+databases:
+  - name: sports-outlet-ai-db
+    plan: free
+    databaseName: sports_outlet_ai
+    user: sports_outlet_ai
+    postgresMajorVersion: "16"
+
+services:
+  # -------------------------------------------------------------------------
+  # Redis (managed) -- BullMQ requires maxmemory-policy noeviction
+  # -------------------------------------------------------------------------
+  - type: redis
+    name: sports-outlet-ai-redis
+    plan: free
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
+
+  # -------------------------------------------------------------------------
+  # Backend API (Express + in-process BullMQ workers, run with tsx)
+  # -------------------------------------------------------------------------
+  - type: web
+    name: backend-api
+    runtime: node
+    plan: free
+    buildCommand: npm install --include=dev
+    startCommand: sh -c "npm --workspace backend run migrate || true; npm --workspace backend run start"
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: sports-outlet-ai-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: sports-outlet-ai-redis
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: openai/gpt-4o
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: PINECONE_INDEX
+        value: sports-outlet-ai
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: LLM_MAX_DAILY_USD
+        value: "10"
+      - key: INGEST_API_KEY
+        generateValue: true
+      - key: MAGENTO_BASE_URL
+        value: https://console.tennisoutlet.in/rest/V1
+      - key: MAGENTO_STORE_URL
+        value: https://tennisoutlet.in
+      - key: MAGENTO_TOKEN
+        sync: false
+      - key: TENNIS_STORE_URL
+        value: https://tennisoutlet.in
+      - key: PICKLEBALL_STORE_URL
+        value: https://pickleballoutlet.in
+      - key: PADEL_STORE_URL
+        value: https://padeloutlet.in
+
+  # -------------------------------------------------------------------------
+  # Tennis frontend (Next.js)
+  # -------------------------------------------------------------------------
+  - type: web
+    name: tennis-frontend
+    runtime: node
+    plan: free
+    buildCommand: npm install --include=dev && npm run build --workspace tennis-frontend
+    startCommand: npm start --workspace tennis-frontend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: SPORT
+        value: tennis
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: backend-api
+          property: hostport
+      - key: NEXT_PUBLIC_CHATBOT_URL
+        sync: false
+
+  # -------------------------------------------------------------------------
+  # Pickleball frontend (Next.js)
+  # -------------------------------------------------------------------------
+  - type: web
+    name: pickleball-frontend
+    runtime: node
+    plan: free
+    buildCommand: npm install --include=dev && npm run build --workspace pickleball-frontend
+    startCommand: npm start --workspace pickleball-frontend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: SPORT
+        value: pickleball
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: backend-api
+          property: hostport
+      - key: NEXT_PUBLIC_CHATBOT_URL
+        sync: false
+
+  # -------------------------------------------------------------------------
+  # Padel frontend (Next.js)
+  # -------------------------------------------------------------------------
+  - type: web
+    name: padel-frontend
+    runtime: node
+    plan: free
+    buildCommand: npm install --include=dev && npm run build --workspace padel-frontend
+    startCommand: npm start --workspace padel-frontend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: SPORT
+        value: padel
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: backend-api
+          property: hostport
+      - key: NEXT_PUBLIC_CHATBOT_URL
+        sync: false

@@ -1,0 +1,29 @@
+# deps
+node_modules/
+**/node_modules/
+
+# build outputs
+dist/
+.next/
+out/
+build/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# editor
+.vscode/
+.idea/
+
+# misc
+coverage/
+*.tsbuildinfo
